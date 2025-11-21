@@ -67,7 +67,7 @@ struct ChatView: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(DesignSystem.surface.opacity(0.5))
-                .clipShape(RoundedRectangle(cornerRadius: DesignSystem.cornerRadius))
+                .clipShape(SquircleShape())
             }
             .padding()
             .background(DesignSystem.background)
@@ -121,7 +121,7 @@ struct ChatView: View {
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(height: 60)
-                            .cornerRadius(8)
+                            .clipShape(SquircleShape())
                             .overlay(
                                 Button(action: {
                                     selectedImageData = nil
@@ -193,16 +193,18 @@ struct ChatView: View {
                         .lineLimit(1...8)
                         .padding(8)
                         .background(DesignSystem.surface.opacity(0.5))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(SquircleShape())
                         .overlay(
-                            RoundedRectangle(cornerRadius: 8)
+                            SquircleShape()
                                 .stroke(DesignSystem.border.opacity(0.5), lineWidth: 1)
                         )
                         .onKeyPress { press in
                             guard press.key == .return else { return .ignored }
                             if press.modifiers.contains(.shift) {
+                                // Shift+Enter: allow line break
                                 return .ignored
                             }
+                            // Enter: send message
                             sendMessage()
                             return .handled
                         }
@@ -563,9 +565,9 @@ struct MessageBubble: View {
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(maxWidth: 300)
-                            .cornerRadius(8)
+                            .clipShape(SquircleShape())
                             .overlay(
-                                RoundedRectangle(cornerRadius: 8)
+                                SquircleShape()
                                     .stroke(DesignSystem.border, lineWidth: 0.5)
                             )
                     }
@@ -593,7 +595,7 @@ struct MessageBubble: View {
                                 image.resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .frame(maxWidth: 400)
-                                .cornerRadius(8)
+                                .clipShape(SquircleShape())
                             case .failure:
                                 HStack {
                                     Image(systemName: "exclamationmark.triangle")
@@ -697,9 +699,9 @@ struct CodeBlockView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(DesignSystem.background.opacity(0.5))
         }
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(SquircleShape())
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
+            SquircleShape()
                 .stroke(DesignSystem.border.opacity(0.3), lineWidth: 1)
         )
         .padding(.vertical, 4)

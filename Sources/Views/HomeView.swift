@@ -56,11 +56,18 @@ struct HomeView: View {
                             .font(DesignSystem.font(size: 16))
                             .foregroundColor(DesignSystem.text)
                             .focused($isInputFocused)
-                            .onSubmit {
+                            .onKeyPress { press in
+                                guard press.key == .return else { return .ignored }
+                                if press.modifiers.contains(.shift) {
+                                    // Shift+Enter: allow default behavior (though TextField doesn't support line breaks)
+                                    return .ignored
+                                }
+                                // Enter: start new session
                                 startNewSession()
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                     isInputFocused = true
                                 }
+                                return .handled
                             }
                         
                         Button {
@@ -180,7 +187,7 @@ struct HomeToDoWidget: View {
                     .frame(maxWidth: .infinity)
                     .padding(12)
                     .background(DesignSystem.accent)
-                    .clipShape(RoundedRectangle(cornerRadius: DesignSystem.cornerRadius))
+                    .clipShape(SquircleShape())
                     .shadow(radius: 2)
                 }
                 .buttonStyle(.plain)

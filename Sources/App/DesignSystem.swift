@@ -77,9 +77,9 @@ struct GlassyCard: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.cornerRadius))
+            .clipShape(SquircleShape())
             .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.cornerRadius)
+                SquircleShape()
                     .stroke(DesignSystem.border, lineWidth: 0.5)
             )
             .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
@@ -164,5 +164,17 @@ struct ThemeAwareStyle: ViewModifier {
         } else {
             content.modifier(CyberCard())
         }
+    }
+}
+
+// MARK: - Shapes
+
+struct SquircleShape: Shape {
+    var curvature: CGFloat = 4
+    
+    func path(in rect: CGRect) -> Path {
+        // Use standard continuous curvature rounded rectangle for UI consistency
+        // This avoids distortion on non-square frames while maintaining the smooth "squircle" look
+        return RoundedRectangle(cornerRadius: DesignSystem.cornerRadius, style: .continuous).path(in: rect)
     }
 }

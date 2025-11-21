@@ -209,14 +209,14 @@ struct MediaGalleryView: View {
                                     EmptyView()
                                 }
                             }
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .clipShape(SquircleShape())
                             .overlay(
-                                RoundedRectangle(cornerRadius: 8)
+                                SquircleShape()
                                     .stroke(DesignSystem.border.opacity(0.5), lineWidth: 1)
                             )
                             .overlay(
                                 Color.black.opacity(hoveredImageId == item.id ? 0.4 : 0)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .clipShape(SquircleShape())
                             )
                             .onTapGesture {
                                 selectedImage = item
@@ -289,7 +289,7 @@ struct MediaGalleryView: View {
                                     .resizable()
                                     .aspectRatio(contentMode: .fit)
                                     .frame(maxWidth: 1000, maxHeight: 800)
-                                    .cornerRadius(12)
+                                    .clipShape(SquircleShape())
                                     .shadow(radius: 20)
                             } else {
                                 ProgressView()
@@ -301,7 +301,7 @@ struct MediaGalleryView: View {
                             .foregroundColor(.white)
                             .padding()
                             .background(.ultraThinMaterial)
-                            .cornerRadius(8)
+                            .clipShape(SquircleShape())
                     }
                 }
                 .transition(.opacity)

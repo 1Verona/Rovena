@@ -112,17 +112,32 @@ class AIService: ObservableObject {
             }
             
             do {
-                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let candidates = json["candidates"] as? [[String: Any]],
-                   let first = candidates.first,
-                   let content = first["content"] as? [String: Any],
-                   let parts = content["parts"] as? [[String: Any]],
-                   let firstPart = parts.first,
-                   let text = firstPart["text"] as? String {
-                    completion(.success(text))
-                } else {
-                    // Error handling
-                    completion(.failure(NSError(domain: "VeroChat", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid Gemini Response"])))
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    // Debug: Print the full response
+                    if let jsonData = try? JSONSerialization.data(withJSONObject: json, options: .prettyPrinted),
+                       let jsonString = String(data: jsonData, encoding: .utf8) {
+                        print("=== GEMINI RESPONSE ===")
+                        print(jsonString)
+                        print("=== END GEMINI ===")
+                    }
+                    
+                    // Check for error first
+                    if let error = json["error"] as? [String: Any],
+                       let message = error["message"] as? String {
+                        completion(.failure(NSError(domain: "Gemini", code: 0, userInfo: [NSLocalizedDescriptionKey: "Gemini Error: \(message)"])))
+                        return
+                    }
+                    
+                    if let candidates = json["candidates"] as? [[String: Any]],
+                       let first = candidates.first,
+                       let content = first["content"] as? [String: Any],
+                       let parts = content["parts"] as? [[String: Any]],
+                       let firstPart = parts.first,
+                       let text = firstPart["text"] as? String {
+                        completion(.success(text))
+                    } else {
+                        completion(.failure(NSError(domain: "VeroChat", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid Gemini Response structure"])))
+                    }
                 }
             } catch {
                 completion(.failure(error))

@@ -5,9 +5,8 @@ enum NavigationItem: String, CaseIterable, Identifiable {
     case chat = "Chat"
     case history = "Archives"
     case canvas = "Canvas"
-    case todo = "Tasks"
+    case presentations = "Presentations"
     case settings = "Settings"
-    case profile = "Profile"
     
     var id: String { self.rawValue }
     
@@ -17,9 +16,8 @@ enum NavigationItem: String, CaseIterable, Identifiable {
         case .chat: return "message"
         case .history: return "clock"
         case .canvas: return "scribble"
-        case .todo: return "checklist"
+        case .presentations: return "chart.pie"
         case .settings: return "gearshape"
-        case .profile: return "person.circle"
         }
     }
 }
@@ -81,12 +79,10 @@ struct ContentView: View {
                     HistoryView(selection: $selection, activeSessionId: $activeSessionId)
                 case .canvas:
                     CanvasView()
-                case .todo:
-                    ToDoView()
+                case .presentations:
+                    PresentationView()
                 case .settings:
                     SettingsView()
-                case .profile:
-                    ProfileView()
                 case .none:
                     Text("Select Module")
                         .font(DesignSystem.font(size: 20))

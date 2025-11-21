@@ -9,6 +9,7 @@ struct CanvasView: View {
     // Viewport State
     @State private var panOffset: CGSize = .zero
     @State private var currentDragOffset: CGSize = .zero
+    @State private var zoomScale: CGFloat = 1.0
     
     // Selection State
     @State private var selectedElementIds: Set<UUID> = []
@@ -30,7 +31,7 @@ struct CanvasView: View {
             GeometryReader { geometry in
                 ZStack(alignment: .topLeading) {
                     // Grid Background (Infinite-ish)
-                    GridBackground(offset: totalOffset)
+                    GridBackground(offset: totalOffset, scale: zoomScale)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     
                     // Elements
@@ -40,7 +41,11 @@ struct CanvasView: View {
                             isSelected: selectedElementIds.contains(element.id),
                             currentTool: currentTool,
                             onTap: {
-                                handleElementTap(element)
+                                if currentTool == .eraser {
+                                    canvasService.removeElement(id: element.id)
+                                } else {
+                                    handleElementTap(element)
+                                }
                             },
                             onDoubleTap: { id, text in
                                 editingElementId = id
@@ -58,25 +63,31 @@ struct CanvasView: View {
                                 commitMoveSelectedElements(offset: offset)
                             }
                         )
-                        .offset(x: element.position.x + totalOffset.width,
-                                y: element.position.y + totalOffset.height)
+                        .scaleEffect(zoomScale)
+                        .offset(x: (element.position.x * zoomScale) + totalOffset.width,
+                                y: (element.position.y * zoomScale) + totalOffset.height)
                     }
                     
-                    // Eraser Path (Visual Feedback)
-                    if currentTool == .eraser, let start = dragStart, let current = currentDragLocation {
-                         Path { path in
-                             path.move(to: start)
-                             path.addLine(to: current)
-                         }
-                         .stroke(Color.red.opacity(0.5), lineWidth: 10)
-                         .offset(x: totalOffset.width, y: totalOffset.height)
+    // Eraser Preview (Cursor Follower)
+                    if currentTool == .eraser {
+                        // We track mouse location using currentDragLocation for both dragging and hovering
+                        // Note: Requires continuous hover tracking which we added below
+                        if let location = currentDragLocation {
+                             Circle()
+                                .stroke(Color.red.opacity(0.8), lineWidth: 1)
+                                .background(Circle().fill(Color.red.opacity(0.1)))
+                                .frame(width: 20 * zoomScale, height: 20 * zoomScale) // Scale cursor with zoom
+                                .position(x: location.x + totalOffset.width, y: location.y + totalOffset.height)
+                                .allowsHitTesting(false)
+                        }
                     }
                     
                     // Current Drawing Element
                     if let current = currentElement {
                         ElementView(element: current, isSelected: false, currentTool: .brush, onTap: {}, onDoubleTap: {_,_ in}, onDragStart: {}, onDrag: {_ in}, onDragEnd: {_ in})
-                            .offset(x: current.position.x + totalOffset.width,
-                                    y: current.position.y + totalOffset.height)
+                            .scaleEffect(zoomScale)
+                            .offset(x: (current.position.x * zoomScale) + totalOffset.width,
+                                    y: (current.position.y * zoomScale) + totalOffset.height)
                     }
                     
                     // Selection Marquee
@@ -100,7 +111,70 @@ struct CanvasView: View {
                             handleBackgroundDragEnd(value: value)
                         }
                 )
+                .simultaneousGesture(
+                    MagnificationGesture()
+                        .onChanged { value in
+                            // Pinch to zoom support
+                            let delta = value - 1.0
+                            zoomScale = max(0.2, min(3.0, zoomScale + delta))
+                        }
+                )
+                .scrollZoomable(scale: $zoomScale)
             }
+            // Command + Scroll Zoom Listener & Hover Tracking
+            .onContinuousHover { phase in
+                switch phase {
+                case .active(let location):
+                    let canvasLocation = CGPoint(x: location.x - totalOffset.width,
+                                                 y: location.y - totalOffset.height)
+                    currentDragLocation = canvasLocation
+                case .ended:
+                    currentDragLocation = nil
+                }
+            }
+            // Use a hidden view or background view to catch scroll events if possible,
+            // or rely on the fact that we are in a scrollable context? 
+            // Actually, adding a tracking area in SwiftUI for scroll wheel is tricky without NSViewRepresentable.
+            // We will implement the buttons first.
+            
+            // Zoom Controls (Right Side)
+            VStack(spacing: 12) {
+                Spacer()
+                
+                Button {
+                    zoomIn()
+                } label: {
+                    Image(systemName: "plus.magnifyingglass")
+                        .font(.system(size: 16))
+                        .frame(width: 32, height: 32)
+                        .background(DesignSystem.surface.opacity(0.8))
+                        .foregroundColor(DesignSystem.text)
+                        .cornerRadius(4)
+                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(DesignSystem.border, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                
+                Button {
+                    zoomOut()
+                } label: {
+                    Image(systemName: "minus.magnifyingglass")
+                        .font(.system(size: 16))
+                        .frame(width: 32, height: 32)
+                        .background(DesignSystem.surface.opacity(0.8))
+                        .foregroundColor(DesignSystem.text)
+                        .cornerRadius(4)
+                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(DesignSystem.border, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                
+                Text("\(Int(zoomScale * 100))%")
+                    .font(DesignSystem.font(size: 10))
+                    .foregroundColor(DesignSystem.text.opacity(0.7))
+                
+                Spacer()
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
             
             // Text Editing Overlay
             if let id = editingElementId, let index = canvasService.elements.firstIndex(where: { $0.id == id }) {
@@ -246,8 +320,6 @@ struct CanvasView: View {
         let canvasLocation = CGPoint(x: screenLocation.x - totalOffset.width,
                                      y: screenLocation.y - totalOffset.height)
         
-        currentDragLocation = canvasLocation
-        
         if dragStart == nil {
             dragStart = canvasLocation
             
@@ -292,9 +364,11 @@ struct CanvasView: View {
             
             switch currentTool {
             case .rectangle:
-                currentElement = CanvasElement(type: .rectangle, position: start, size: CGSize(width: width, height: height), color: selectedColor, text: "RECT")
+                let rect = CGRect(x: start.x, y: start.y, width: width, height: height).standardized
+                currentElement = CanvasElement(type: .rectangle, position: rect.origin, size: rect.size, color: selectedColor, text: "RECT")
             case .circle:
-                currentElement = CanvasElement(type: .circle, position: start, size: CGSize(width: width, height: height), color: selectedColor, text: "CIRCLE")
+                let rect = CGRect(x: start.x, y: start.y, width: width, height: height).standardized
+                currentElement = CanvasElement(type: .circle, position: rect.origin, size: rect.size, color: selectedColor, text: "CIRCLE")
             case .line:
                 currentElement = CanvasElement(type: .line, position: start, size: CGSize(width: width, height: height), color: selectedColor)
             case .brush:
@@ -405,6 +479,20 @@ struct CanvasView: View {
         }
         editingElementId = nil
         editText = ""
+    }
+    
+    // MARK: - Zoom Handling
+    
+    func zoomIn() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            zoomScale = min(zoomScale + 0.2, 3.0)
+        }
+    }
+    
+    func zoomOut() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            zoomScale = max(zoomScale - 0.2, 0.2)
+        }
     }
 }
 
@@ -528,6 +616,8 @@ struct ElementView: View {
         .onTapGesture {
             if currentTool == .selection {
                 onTap()
+            } else if currentTool == .eraser {
+                onTap()
             }
         }
     }
@@ -535,15 +625,16 @@ struct ElementView: View {
 
 struct GridBackground: View {
     var offset: CGSize
+    var scale: CGFloat = 1.0
     
     var body: some View {
         GeometryReader { geometry in
             Path { path in
-                let step: CGFloat = 40
+                let step: CGFloat = 40 * scale
                 
                 // Calculate start points based on offset to make grid "move"
-                let startX = offset.width.truncatingRemainder(dividingBy: step)
-                let startY = offset.height.truncatingRemainder(dividingBy: step)
+                let startX = (offset.width).truncatingRemainder(dividingBy: step)
+                let startY = (offset.height).truncatingRemainder(dividingBy: step)
                 
                 // Vertical lines
                 for x in stride(from: startX, to: geometry.size.width, by: step) {

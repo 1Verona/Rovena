@@ -2,6 +2,8 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject private var settings = SettingsManager.shared
+    @ObservedObject var authManager = AuthManager.shared
+    @State private var showLogoutAlert = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -11,6 +13,63 @@ struct SettingsView: View {
             
             ScrollView {
                 VStack(spacing: 24) {
+                    // Profile Section
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Profile")
+                                .font(DesignSystem.font(size: 14, weight: .medium))
+                                .foregroundColor(DesignSystem.text.opacity(0.7))
+                                .padding(.leading, 4)
+                            
+                            Spacer()
+                            
+                            // Logout Button (Small & Right Aligned)
+                            Button(action: { showLogoutAlert = true }) {
+                                HStack(spacing: 6) {
+                                    Text("Sign Out")
+                                        .font(DesignSystem.font(size: 12))
+                                    Image(systemName: "power")
+                                        .font(.system(size: 12))
+                                }
+                                .foregroundColor(.red)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.red.opacity(0.1))
+                                .clipShape(SquircleShape())
+                                .overlay(SquircleShape().stroke(Color.red.opacity(0.3), lineWidth: 1))
+                            }
+                            .buttonStyle(.plain)
+                            .confirmationDialog("Are you sure you want to logout?", isPresented: $showLogoutAlert) {
+                                Button("Sign Out", role: .destructive) {
+                                    authManager.signOut()
+                                }
+                                Button("Cancel", role: .cancel) { }
+                            } message: {
+                                Text("This will end your current session.")
+                            }
+                        }
+                        
+                        HStack(spacing: 16) {
+                            Image(systemName: "person.circle.fill")
+                                .font(.system(size: 40))
+                                .foregroundColor(DesignSystem.accent)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(authManager.user?.email.uppercased() ?? "UNKNOWN_USER")
+                                    .font(DesignSystem.font(size: 16))
+                                    .foregroundColor(DesignSystem.text)
+                                
+                                Text("ID: \(authManager.user?.uid ?? "N/A")")
+                                    .font(DesignSystem.font(size: 10))
+                                    .foregroundColor(DesignSystem.text.opacity(0.5))
+                            }
+                            
+                            Spacer()
+                        }
+                        .padding()
+                        .elementStyle()
+                    }
+                    
                     // Appearance Section
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Appearance")

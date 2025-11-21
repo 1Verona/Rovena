@@ -47,7 +47,7 @@ struct ToDoView: View {
                     .frame(maxWidth: .infinity)
                     .padding(12)
                     .background(DesignSystem.accent)
-                    .clipShape(RoundedRectangle(cornerRadius: DesignSystem.cornerRadius))
+                    .clipShape(SquircleShape())
                     .shadow(radius: 2)
                 }
                 .buttonStyle(.plain)
@@ -86,12 +86,24 @@ struct AddTaskView: View {
                     .foregroundColor(DesignSystem.text)
                     .padding(10)
                     .background(DesignSystem.surface.opacity(0.5))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .clipShape(SquircleShape())
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8)
+                        SquircleShape()
                             .stroke(DesignSystem.border.opacity(0.5), lineWidth: 1)
                     )
                     .focused($isTitleFocused)
+                    .onKeyPress { press in
+                        guard press.key == .return else { return .ignored }
+                        if press.modifiers.contains(.shift) {
+                            // Shift+Enter: allow default behavior (though TextField doesn't support line breaks)
+                            return .ignored
+                        }
+                        // Enter: create task
+                        if !title.isEmpty {
+                            saveTask()
+                        }
+                        return .handled
+                    }
             }
             
             VStack(alignment: .leading, spacing: 8) {
@@ -105,12 +117,24 @@ struct AddTaskView: View {
                     .frame(height: 100)
                     .padding(4)
                     .background(DesignSystem.surface.opacity(0.5))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .clipShape(SquircleShape())
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8)
+                        SquircleShape()
                             .stroke(DesignSystem.border.opacity(0.5), lineWidth: 1)
                     )
                     .scrollContentBackground(.hidden)
+                    .onKeyPress { press in
+                        guard press.key == .return else { return .ignored }
+                        if press.modifiers.contains(.shift) {
+                            // Shift+Enter: allow line break (default behavior)
+                            return .ignored
+                        }
+                        // Enter: create task
+                        if !title.isEmpty {
+                            saveTask()
+                        }
+                        return .handled
+                    }
             }
             
             HStack(spacing: 16) {
@@ -123,7 +147,7 @@ struct AddTaskView: View {
                         .frame(maxWidth: .infinity)
                         .padding(10)
                         .background(DesignSystem.surface.opacity(0.5))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(SquircleShape())
                 }
                 .buttonStyle(.plain)
                 
@@ -136,7 +160,7 @@ struct AddTaskView: View {
                         .frame(maxWidth: .infinity)
                         .padding(10)
                         .background(title.isEmpty ? Color.gray : DesignSystem.accent)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .clipShape(SquircleShape())
                 }
                 .buttonStyle(.plain)
                 .disabled(title.isEmpty)
@@ -155,8 +179,11 @@ struct AddTaskView: View {
     
     func saveTask() {
         guard !title.isEmpty else { return }
-        ToDoService.shared.addItem(content: title, description: description)
-        isPresented = false
+        // Force UI update by performing on main thread
+        DispatchQueue.main.async {
+            ToDoService.shared.addItem(content: title, description: description)
+            isPresented = false
+        }
     }
 }
 
@@ -225,8 +252,8 @@ struct ToDoRow: View {
         }
         .padding()
         .background(isHovered ? DesignSystem.surface.opacity(0.5) : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .contentShape(Rectangle())
+        .clipShape(SquircleShape())
+        .contentShape(SquircleShape())
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.2)) {
                 isHovered = hovering
