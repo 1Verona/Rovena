@@ -10,6 +10,13 @@ enum AppTheme: String, CaseIterable, Identifiable {
 class SettingsManager: ObservableObject {
     static let shared = SettingsManager()
     
+    // When true, Rovena uses the cloud backend (your infra + Stripe) instead of direct provider keys.
+    @Published var useRovenaCloud: Bool {
+        didSet {
+            UserDefaults.standard.set(useRovenaCloud, forKey: "useRovenaCloud")
+        }
+    }
+    
     @Published var openAIKey: String {
         didSet {
             UserDefaults.standard.set(openAIKey, forKey: "openAIKey")
@@ -47,6 +54,7 @@ class SettingsManager: ObservableObject {
     }
     
     init() {
+        self.useRovenaCloud = UserDefaults.standard.object(forKey: "useRovenaCloud") as? Bool ?? true
         self.openAIKey = UserDefaults.standard.string(forKey: "openAIKey") ?? ""
         self.anthropicKey = UserDefaults.standard.string(forKey: "anthropicKey") ?? ""
         self.geminiKey = UserDefaults.standard.string(forKey: "geminiKey") ?? ""

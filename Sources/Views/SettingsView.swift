@@ -108,14 +108,14 @@ struct SettingsView: View {
                         .elementStyle()
                     }
                     
-                    // Keys Section
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack(spacing: 8) {
-                            Text("API Keys")
+                    // AI Configuration Section
+                    VStack(alignment: .leading, spa                        HStack(spacing: 8) {
+                            Text("AI Configuration")
                                 .font(DesignSystem.font(size: 14, weight: .medium))
                                 .foregroundColor(DesignSystem.text.opacity(0.7))
                             
                             Menu {
+             Menu {
                                 Text("O que é uma API Key?")
                                     .font(DesignSystem.font(size: 12, weight: .bold))
                                 
@@ -136,11 +136,32 @@ struct SettingsView: View {
                         }
                         .padding(.leading, 4)
                         
-                        VStack(spacing: 16) {
-                            KeyField(title: "OpenAI API Key", value: $settings.openAIKey)
-                            KeyField(title: "Anthropic API Key", value: $settings.anthropicKey)
-                            KeyField(title: "Gemini API Key", value: $settings.geminiKey)
-                            KeyField(title: "Custom Endpoint", value: $settings.customEndpoint)
+                        VStack(alignment: .leading, spacing: 16) {
+                            Toggle(isOn: $settings.useRovenaCloud) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Use Rovena Cloud (recommended)")
+                                        .font(DesignSystem.font(size: 13, weight: .medium))
+                                        .foregroundColor(DesignSystem.text)
+                                    Text("Uses your Rovena account credits/plan, no need to configure provider API keys.")
+                                        .font(DesignSystem.font(size: 11))
+                                        .foregroundColor(DesignSystem.text.opacity(0.6))
+                                }
+                            }
+                            .toggleStyle(.switch)
+                            
+                            if !settings.useRovenaCloud {
+                                VStack(alignment: .leading, spacing: 16) {
+                                    Text("Advanced: Bring your own API keys")
+                                        .font(DesignSystem.font(size: 12, weight: .medium))
+                                        .foregroundColor(DesignSystem.text.opacity(0.7))
+                                    
+                                    KeyField(title: "OpenAI API Key", value: $settings.openAIKey)
+                                    KeyField(title: "Anthropic API Key", value: $settings.anthropicKey)
+                                    KeyField(title: "Gemini API Key", value: $settings.geminiKey)
+                                    KeyField(title: "Custom Endpoint", value: $settings.customEndpoint)
+                                }
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                            }
                         }
                     }
                 }

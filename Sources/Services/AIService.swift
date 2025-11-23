@@ -14,11 +14,54 @@ class AIService: ObservableObject {
     ]
     
     func sendMessage(_ messages: [ChatMessage], model: String = "gpt-3.5-turbo", completion: @escaping (Result<String, Error>) -> Void) {
+        if SettingsManager.shared.useRovenaCloud {
+            sendViaRovenaBackend(messages, model: model, completion: completion)
+            return
+        }
+        
         if model.contains("gemini") {
             sendGeminiMessage(messages, model: model, completion: completion)
         } else {
             sendOpenAIMessage(messages, model: model, completion: completion)
         }
+    }
+    
+    // MARK: - Rovena Cloud Backend
+    private func sendViaRovenaBackend(_ messages: [ChatMessage], model: String, completion: @escaping (Result<String, Error>) -> Void) {
+        guard let token = AuthManager.shared.idToken else {
+            completion(.failure(NSError(domain: "Rovena", code: 401, userInfo: [NSLocalizedDescriptionKey: "Not authenticated"])))
+            return
+        }
+        
+        let backendURLString = SettingsManager.shared.customEndpoint.isEmpty
+            ? "https://api.rovena.app/api/chat"
+            : SettingsManager.shared.customEndpoint
+        
+        guard let url = URL(string: backendURLString) else {
+            completion(.failure(NSError(domain: "Rovena", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid backend URL"])))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let payloadMessages: [[String: Any]] = messages.map { msg in
+            [
+                "role": msg.role.rawValue,
+                "content": msg.content
+            ]
+        }
+        
+        let body: [String: Any] = [
+            "model": model,
+            "messages": payloadMessages
+        ]
+        
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        
+        performRequest(request: request, completion: completion)
     }
     
     private func sendOpenAIMessage(_ messages: [ChatMessage], model: String, completion: @escaping (Result<String, Error>) -> Void) {
@@ -190,6 +233,11 @@ class AIService: ObservableObject {
     
     // Image Generation (DALL-E 3)
     func generateImage(prompt: String, completion: @escaping (Result<URL, Error>) -> Void) {
+        if SettingsManager.shared.useRovenaCloud {
+            generateImageViaRovenaBackend(prompt: prompt, completion: completion)
+            return
+        }
+        
         guard let apiKey = SettingsManager.shared.openAIKey.isEmpty ? nil : SettingsManager.shared.openAIKey else {
              completion(.failure(NSError(domain: "VeroChat", code: 401, userInfo: [NSLocalizedDescriptionKey: "OpenAI API Key Missing"])))
              return
@@ -242,6 +290,63 @@ class AIService: ObservableObject {
                     } else {
                         completion(.failure(NSError(domain: "VeroChat", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid Image Response"])))
                     }
+                }
+            } catch {
+                completion(.failure(error))
+            }
+        }.resume()
+    }
+    
+    private func generateImageViaRovenaBackend(prompt: String, completion: @escaping (Result<URL, Error>) -> Void) {
+        guard let token = AuthManager.shared.idToken else {
+            completion(.failure(NSError(domain: "Rovena", code: 401, userInfo: [NSLocalizedDescriptionKey: "Not authenticated"])))
+            return
+        }
+        
+        let backendURLString = SettingsManager.shared.customEndpoint.isEmpty
+            ? "https://api.rovena.app/api/image"
+            : SettingsManager.shared.customEndpoint
+        
+        guard let url = URL(string: backendURLString) else {
+            completion(.failure(NSError(domain: "Rovena", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid backend URL"])))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = [
+            "prompt": prompt
+        ]
+        
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        
+        isProcessing = true
+        
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                self?.isProcessing = false
+            }
+            
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            guard let data = data else {
+                completion(.failure(NSError(domain: "Rovena", code: 0, userInfo: [NSLocalizedDescriptionKey: "No Data"])))
+                return
+            }
+            
+            do {
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let urlString = json["url"] as? String,
+                   let url = URL(string: urlString) {
+                    completion(.success(url))
+                } else {
+                    completion(.failure(NSError(domain: "Rovena", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid Image Response"])))
                 }
             } catch {
                 completion(.failure(error))
